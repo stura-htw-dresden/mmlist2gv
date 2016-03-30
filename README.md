@@ -8,6 +8,7 @@ Create mailman lists member hierarchie to graphviz
 ## usage
 
  $ perl mmlist2gv.pl > mmlist.gv
+ 
  $ dot -Tpng mmlist.gv > mmlist.png
  
 ## Configuration
