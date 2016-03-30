@@ -9,11 +9,39 @@ our $MM_PREFIX = "/usr/local/mailman";
 our $MAILHIER = {};
 our $MM_SHIER = {};
 
+sub list_mem_nomail($) {
+    my $list = shift;
+    my $output = qx/$MM_PREFIX\/bin\/list_members -n "$list" | sed -E 's|\@$DOMAIN||g'/;
+    chomp($output);
+    my @nomailmembers = split /\n/, $output;
+    return wantarray ? @nomailmembers : \@nomailmembers;
+}
 
-sub mmtree_hash {
+sub list_mem_mail($) {
+    my $list = shift;
+    my $output = qx/$MM_PREFIX\/bin\/list_members "$list" | sed -E 's|\@$DOMAIN||g'/;
+    chomp($output);
+    my @nomailmembers = split /\n/, $output;
+    return wantarray ? @nomailmembers : \@nomailmembers;
+}
+
+sub get_lists {
+    my $output = qx/$MM_PREFIX\/bin\/list_lists | grep -oE ".*\ -" | sed -E 's|^ +||' |  sed -E 's| -.*\$||'/;
+    chomp($output);
+    return $output;
+}
+
+sub find_mem ($) {
     my $list = shift;
     my $output = qx/$MM_PREFIX\/bin\/find_member "^$list\@$DOMAIN" | grep -iv "$list\@$DOMAIN" | sed -E 's|^ +||' /;
+    chomp($output);
     my @members = split /\n/, $output;
+    return wantarray ? @members : \@members;
+}
+
+sub mmtree_hash($) {
+    my $list = shift;
+    my @members = &find_mem($list);
     my $listhier = {};
     return undef unless @members;
     for my $member (@members) {
@@ -31,8 +59,7 @@ sub mmtree_array {
         mail => []
     };
     for my $member (keys %{$mailhier->{$list}}) {
-        my $output = qx/$MM_PREFIX\/bin\/list_members -n "$member" | sed -E 's|\@$DOMAIN||g'/;
-        my @nomailmembers = split /\n/, $output;
+        my @nomailmembers = &list_mem_nomail($member);
 
         if ($list ~~ @nomailmembers) {
             push $MM_SHIER->{$list}->{nomail}, $member;
@@ -42,10 +69,10 @@ sub mmtree_array {
         &mmtree_array($member, $mailhier->{$list});
     }
 }
+
 my $output;
 unless (@ARGV) {
-    $output = qx/$MM_PREFIX\/bin\/list_lists | grep -oE ".*\ -" | sed -E 's|^ +||' |  sed -E 's| -.*\$||'/;
-    chomp($output);
+    $output = &get_lists();
 } else {
     $output = $ARGV[0];
 }
@@ -55,8 +82,8 @@ for my $list (@lists) {
     $MAILHIER->{$list} = {};
     $MAILHIER->{$list} = &mmtree_hash($list);
 }
-for my $list (keys %{$MAILHIER}) {
-#for my $list (@lists) {
+
+for my $list (@lists) {
     mmtree_array($list, $MAILHIER);
 }
 say "digraph \"maillist_hier\" {";
