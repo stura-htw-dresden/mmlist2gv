@@ -26,10 +26,19 @@ sub mmtree_hash {
 sub mmtree_array {
     my $list  = shift;
     my $mailhier = shift;
-    $MM_SHIER->{$list} = [];
+    $MM_SHIER->{$list} = {
+        nomail => [],
+        mail => []
+    };
     for my $member (keys %{$mailhier->{$list}}) {
-        push $MM_SHIER->{$list}, $member;
-        #say "\"".$member . "\" -> \"" . $list . "\";";
+        my $output = qx/$MM_PREFIX\/bin\/list_members -n "$member" | sed -E 's|\@$DOMAIN||g'/;
+        my @nomailmembers = split /\n/, $output;
+
+        if ($list ~~ @nomailmembers) {
+            push $MM_SHIER->{$list}->{nomail}, $member;
+        } else {
+            push $MM_SHIER->{$list}->{mail}, $member;
+        }
         &mmtree_array($member, $mailhier->{$list});
     }
 }
@@ -47,14 +56,18 @@ for my $list (@lists) {
     $MAILHIER->{$list} = &mmtree_hash($list);
 }
 for my $list (keys %{$MAILHIER}) {
+#for my $list (@lists) {
     mmtree_array($list, $MAILHIER);
 }
 say "digraph \"maillist_hier\" {";
 say "overlap=false;";
 say "rankdir=BT";
 for my $list (keys %{$MM_SHIER}) {
-    foreach (@{$MM_SHIER->{$list}}) {
-        say "\"". $_ . "\" -> \"" . $list . "\";";
+    foreach (@{$MM_SHIER->{$list}->{mail}}) {
+        say "\"". $_ . "\" -> \"" . $list . "\" [color=green];";
+    }
+    foreach (@{$MM_SHIER->{$list}->{nomail}}) {
+        say "\"". $_ . "\" -> \"" . $list . "\" [color=red, style=dashed];";
     }
 }
 say "}";
