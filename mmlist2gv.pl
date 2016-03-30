@@ -10,7 +10,7 @@ our $MAILHIER = {};
 our $MM_SHIER = {};
 
 
-sub mailtree {
+sub mmtree_hash {
     my $list = shift;
     my $output = qx/$MM_PREFIX\/bin\/find_member "^$list\@$DOMAIN" | grep -iv "$list\@$DOMAIN" | sed -E 's|^ +||' /;
     my @members = split /\n/, $output;
@@ -18,19 +18,19 @@ sub mailtree {
     return undef unless @members;
     for my $member (@members) {
         next unless defined $member;
-        $listhier->{$member} = &mailtree($member);
+        $listhier->{$member} = &mmtree_hash($member);
     }
     return $listhier;
 }
 
-sub draw_mmtree {
+sub mmtree_array {
     my $list  = shift;
     my $mailhier = shift;
     $MM_SHIER->{$list} = [];
     for my $member (keys %{$mailhier->{$list}}) {
         push $MM_SHIER->{$list}, $member;
         #say "\"".$member . "\" -> \"" . $list . "\";";
-        &draw_mmtree($member, $mailhier->{$list});
+        &mmtree_array($member, $mailhier->{$list});
     }
 }
 my $output;
@@ -44,21 +44,10 @@ unless (@ARGV) {
 my @lists = split /\n/, $output ;
 for my $list (@lists) {
     $MAILHIER->{$list} = {};
-    $MAILHIER->{$list} = &mailtree($list);
-#    my $output = qx/$MM_PREFIX\/bin\/find_member "^$list\@$DOMAIN" | grep -v "$list\@$DOMAIN" | sed -E 's|^ +||' /;
-#    my @members = split /\n/, $output;
-#    for my $member (@members) {
-#        next unless defined $member;
-#        $MAILHIER->{$list}->{$member} = undef;
-#    }
+    $MAILHIER->{$list} = &mmtree_hash($list);
 }
 for my $list (keys %{$MAILHIER}) {
-    $MM_SHIER->{$list} = [];
-    for my $member (keys %{$MAILHIER->{$list}}) {
-        #say "\"".$member . "\" -> \"" . $list . "\";";
-        push $MM_SHIER->{$list}, $member;
-        &draw_mmtree($member, $MAILHIER->{$list});
-    }
+    mmtree_array($list, $MAILHIER);
 }
 say "digraph \"maillist_hier\" {";
 say "overlap=false;";
