@@ -21,8 +21,8 @@ sub list_mem_mail($) {
     my $list = shift;
     my $output = qx/$MM_PREFIX\/bin\/list_members "$list" | sed -E 's|\@$DOMAIN||g'/;
     chomp($output);
-    my @nomailmembers = split /\n/, $output;
-    return wantarray ? @nomailmembers : \@nomailmembers;
+    my @mailmembers = split /\n/, $output;
+    return wantarray ? @mailmembers : \@mailmembers;
 }
 
 sub get_lists {
